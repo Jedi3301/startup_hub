@@ -1,0 +1,94 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  Founder
+  Contributor
+  Admin
+}
+
+enum VoteType {
+  UP
+  DOWN
+}
+
+enum TicketStatus {
+  PENDING
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  legalName    String   @map("legal_name")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  startups            Startup[]            @relation("FounderStartups")
+  votes               Vote[]
+  contributionTickets ContributionTicket[]
+
+  @@map("users")
+}
+
+model Startup {
+  id                  String   @id @default(uuid())
+  founderId           String   @map("founder_id")
+  name                String
+  slug                String   @unique
+  logoUrl             String?  @map("logo_url")
+  oneLiner            String   @map("one_liner")
+  summaryMarkdown     String   @map("summary_markdown")
+  technologies        String[]
+  metricsJson         Json     @map("metrics_json")
+  customizationLayout Json     @map("customization_layout")
+  upvoteCount         Int      @default(0) @map("upvote_count")
+  downvoteCount       Int      @default(0) @map("downvote_count")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  founder             User                 @relation("FounderStartups", fields: [founderId], references: [id], onDelete: Cascade)
+  votes               Vote[]
+  contributionTickets ContributionTicket[]
+
+  @@map("startups")
+}
+
+model Vote {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  startupId String   @map("startup_id")
+  voteType  VoteType @map("vote_type")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startup Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, startupId])
+  @@map("votes")
+}
+
+model ContributionTicket {
+  id                     String       @id @default(uuid())
+  startupId              String       @map("startup_id")
+  userId                 String       @map("user_id")
+  title                  String
+  pitchDescription       String       @map("pitch_description")
+  skillsOffered          String[]     @map("skills_offered")
+  status                 TicketStatus @default(PENDING)
+  financialFundingAmount Decimal?     @map("financial_funding_amount")
+  createdAt              DateTime     @default(now()) @map("created_at")
+
+  startup Startup @relation(fields: [startupId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("contribution_tickets")
+}
